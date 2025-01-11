@@ -72,12 +72,13 @@ export class DocHandle<T> extends EventEmitter<DocHandleEvents<T>> {
           this.emit("delete", { handle: this })
           return { doc: A.init() }
         }),
-        onUnload: assign(() => {
+        onUnavailable: assign(() => {
           return { doc: A.init() }
         }),
-        onUnavailable: () => {
-          this.emit("unavailable", { handle: this })
-        },
+        onUnload: assign(() => {
+          // TODO
+          return { doc: A.init() }
+        }),
       },
     }).createMachine({
       /** @xstate-layout N4IgpgJg5mDOIC5QAoC2BDAxgCwJYDswBKAYgFUAFAEQEEAVAUQG0AGAXUVAAcB7WXAC64e+TiAAeiAOwAOAKwA6ACxSAzKqks1ATjlTdAGhABPRAFolAJksKN2y1KtKAbFLla5AX09G0WPISkVAwAMgyMrBxIILz8QiJikggAjCzOijKqLEqqybJyLizaRqYIFpbJtro5Uo7J2o5S3r4YOATECrgQADZgJADCAEoM9MzsYrGCwqLRSeoyCtra8pa5adquySXmDjY5ac7JljLJeepKzSB+bYGdPX0AYgCSAHJUkRN8UwmziM7HCgqyVcUnqcmScmcMm2ZV2yiyzkOx1OalUFx8V1aAQ63R46AgBCgJGGAEUyAwAMp0D7RSbxGagJKHFgKOSWJTJGRSCosCpKaEmRCqbQKU5yXINeTaer6LwY67YogKXH4wkkKgAeX6AH1hjQqABNGncL70xKIJQ5RY5BHOJag6wwpRyEWImQVeT1aWrVSXBXtJUqgn4Ik0ADqNCedG1L3CYY1gwA0saYqbpuaEG4pKLksKpFDgcsCjDhTnxTKpTLdH6sQGFOgAO7oKYhl5gAQNngAJwA1iRY3R40ndSNDSm6enfpm5BkWAVkvy7bpuTCKq7ndZnfVeSwuTX-HWu2AAI4AVzgQhD6q12rILxoADVIyEaAAhMLjtM-RmIE4LVSQi4nLLDIGzOCWwLKA0cgyLBoFWNy+43B0R5nheaqajqepjuMtJfgyEh-FoixqMCoKqOyhzgYKCDOq6UIeuCSxHOoSGKgop74OgABuzbdOgABGvTXlho5GrhJpxJOP4pLulT6KoMhpJY2hzsWNF0QobqMV6LG+pc+A8BAcBiP6gSfFJ36EQgKksksKxrHamwwmY7gLKB85QjBzoAWxdZdL0FnfARST8ooLC7qoTnWBU4pyC5ViVMKBQaHUDQuM4fm3EGhJBWaU7-CysEAUp3LpEpWw0WYRw2LmqzgqciIsCxWUdI2zaXlAbYdt2PZ5dJ1n5jY2iJY1ikOIcMJHCyUWHC62hRZkUVNPKta3Kh56wJ1-VWUyzhFc64JWJCtQNBBzhQW4cHwbsrVKpxPF8YJgV4ZZIWIKkiKiiNSkqZYWjzCWaQ5hFh0AcCuR3QoR74qUknBRmzholpv3OkpRQNNRpTzaKTWKbIWR5FDxm9AIkA7e9skUYCWayLILBZGoLkUSKbIyIdpxHPoyTeN4QA */
@@ -264,7 +265,7 @@ export class DocHandle<T> extends EventEmitter<DocHandleEvents<T>> {
    * This is the recommended way to access a handle's document. Note that this waits for the handle
    * to be ready if necessary. If loading (or synchronization) fails, this will never resolve.
    */
-  async doc(
+  async legacyAsyncDoc(
     /** states to wait for, such as "LOADING". mostly for internal use. */
     awaitStates: HandleState[] = ["ready", "unavailable"]
   ) {
@@ -280,21 +281,15 @@ export class DocHandle<T> extends EventEmitter<DocHandleEvents<T>> {
   }
 
   /**
-   * Synchronously returns the current state of the Automerge document this handle manages, or
-   * undefined. Consider using `await handle.doc()` instead. Check `isReady()`, or use `whenReady()`
-   * if you want to make sure loading is complete first.
+   * Returns the current state of the Automerge document this handle manages.
    *
-   * Not to be confused with the SyncState of the document, which describes the state of the
-   * synchronization process.
+   * @returns the current document
+   * @throws on deleted and unavailable documents
    *
-   * Note that `undefined` is not a valid Automerge document, so the return from this function is
-   * unambigous.
-   *
-   * @returns the current document, or undefined if the document is not ready.
    */
-  docSync() {
-    if (!this.isReady()) return undefined
-    else return this.#doc
+  doc() {
+    if (!this.isReady()) throw new Error("DocHandle is not ready")
+    return this.#doc
   }
 
   /**
@@ -314,9 +309,7 @@ export class DocHandle<T> extends EventEmitter<DocHandleEvents<T>> {
   }
 
   /**
-   * Creates a fixed "view" of an automerge document at the given point in time represented
-   * by the `heads` passed in. The return value is the same type as docSync() and will return
-   * undefined if the object hasn't finished loading.
+   * Returns the history of an automerge document, one change at a time in an arbitrary but consistent order.
    *
    * @remarks
    * A point-in-time in an automerge document is an *array* of heads since there may be
@@ -338,7 +331,7 @@ export class DocHandle<T> extends EventEmitter<DocHandleEvents<T>> {
 
   /**
    * Creates a fixed "view" of an automerge document at the given point in time represented
-   * by the `heads` passed in. The return value is the same type as docSync() and will return
+   * by the `heads` passed in. The return value is the same type as doc() and will return
    * undefined if the object hasn't finished loading.
    *
    * @remarks
@@ -502,7 +495,7 @@ export class DocHandle<T> extends EventEmitter<DocHandleEvents<T>> {
     if (!this.isReady() || !otherHandle.isReady()) {
       throw new Error("Both handles must be ready to merge")
     }
-    const mergingDoc = otherHandle.docSync()
+    const mergingDoc = otherHandle.doc()
     if (!mergingDoc) {
       throw new Error("The document to be merged in is falsy, aborting.")
     }
@@ -588,7 +581,6 @@ export interface DocHandleEvents<T> {
   "heads-changed": (payload: DocHandleEncodedChangePayload<T>) => void
   change: (payload: DocHandleChangePayload<T>) => void
   delete: (payload: DocHandleDeletePayload<T>) => void
-  unavailable: (payload: DocHandleUnavailablePayload<T>) => void
   "ephemeral-message": (payload: DocHandleEphemeralMessagePayload<T>) => void
   "ephemeral-message-outbound": (
     payload: DocHandleOutboundEphemeralMessagePayload<T>

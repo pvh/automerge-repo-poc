@@ -11,9 +11,9 @@
  * Most hooks depend on RepoContext being available.
  *
  * #### {@link useDocument}
- * Return the current state of a document (or undefined) and a change function.
+ * Return the current state of a document and a change function.
  *
- * #### {@link useHandle}
+ * #### {@link useDocHandle}
  * Return a DocHandle by passing in a DocumentURL.
  *
  * #### {@link useLocalAwareness} & {@link useRemoteAwareness}
@@ -25,7 +25,7 @@
  */
 export { useDocument } from "./useDocument.js"
 export { useDocuments } from "./useDocuments.js"
-export { useHandle } from "./useHandle.js"
+export { useDocHandle } from "./useDocHandle.js"
 export { RepoContext, useRepo } from "./useRepo.js"
 export {
   useLocalAwareness,
